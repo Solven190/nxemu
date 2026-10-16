@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <mutex>
 #include <set>
 #include <span>
 #include <string>
@@ -251,6 +252,12 @@ public:
         return present_queue;
     }
 
+    /// Serializes every use of the device's queues: submissions and presents
+    /// come from several threads, and Vulkan leaves that ordering to the caller.
+    std::mutex& QueueMutex() const {
+        return queue_mutex;
+    }
+
     /// Returns main graphics queue family index.
     u32 GetGraphicsFamily() const {
         return graphics_family;
@@ -350,6 +357,10 @@ public:
     /// Returns true if sampled texture array indices may vary between shader invocations.
     bool IsSampledImageArrayNonUniformIndexingSupported() const {
         return features.descriptor_indexing.shaderSampledImageArrayNonUniformIndexing != VK_FALSE;
+    }
+
+    bool IsStorageImageArrayNonUniformIndexingSupported() const {
+        return features.descriptor_indexing.shaderStorageImageArrayNonUniformIndexing != VK_FALSE;
     }
 
     /// Returns true if the device supports float64 natively.
@@ -787,6 +798,8 @@ public:
     }
 
 private:
+    mutable std::mutex queue_mutex;
+
     /// Checks if the physical device is suitable and configures the object state
     /// with all necessary info about its properties.
     bool GetSuitability(bool requires_swapchain);
