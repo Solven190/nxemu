@@ -1,49 +1,63 @@
 <div align="center">
 
-# NxEmu
+<img src="src/nxemu/ui/assets/images/nxemu-logo.png" alt="NxEmu logo" width="180">
 
-**A free and open-source Nintendo Switch emulator written in C++**
+<h1>NxEmu</h1>
 
-[
+<p><strong>A free and open-source Nintendo Switch emulator written in C++</strong></p>
 
-![License](https://img.shields.io/badge/License-GPLv3-blue?style=for-the-badge)
+<p>
+  <a href="./license.txt"><img src="https://img.shields.io/badge/License-GPLv3-blue?style=for-the-badge" alt="License"></a>
+  <a href="https://github.com/N3xoX1/nxemu/releases"><img src="https://img.shields.io/github/v/release/N3xoX1/nxemu?style=for-the-badge" alt="Latest release"></a>
+  <a href="https://github.com/N3xoX1/nxemu/stargazers"><img src="https://img.shields.io/github/stars/N3xoX1/nxemu?style=for-the-badge" alt="Stars"></a>
+  <a href="https://github.com/N3xoX1/nxemu/commits"><img src="https://img.shields.io/github/last-commit/N3xoX1/nxemu?style=for-the-badge" alt="Last commit"></a>
+</p>
 
-](./license.txt)
-[
+<p>
+  <a href="https://www.nxemu.com"><img src="https://img.shields.io/badge/Website-nxemu.com-0A66C2?style=for-the-badge" alt="Website"></a>
+  <a href="https://discord.gg/hEa4hNyFWU"><img src="https://img.shields.io/badge/Chat-Discord-5865F2?style=for-the-badge" alt="Discord"></a>
+</p>
 
-![Website](https://img.shields.io/badge/Website-nxemu.com-0A66C2?style=for-the-badge)
-
-](https://www.nxemu.com)
-[
-
-![Discord](https://img.shields.io/badge/Chat-Discord-5865F2?style=for-the-badge)
-
-](https://discord.gg/hEa4hNyFWU)
-
-[Website](https://www.nxemu.com) &nbsp;|&nbsp; [Downloads](https://www.nxemu.com/downloads.html) &nbsp;|&nbsp; [About](https://www.nxemu.com/about.html) &nbsp;|&nbsp; [Discord](https://discord.gg/hEa4hNyFWU)
+<p>
+  <a href="https://www.nxemu.com">Website</a> &nbsp;|&nbsp;
+  <a href="https://www.nxemu.com/downloads.html">Downloads</a> &nbsp;|&nbsp;
+  <a href="https://www.nxemu.com/about.html">About</a> &nbsp;|&nbsp;
+  <a href="https://discord.gg/hEa4hNyFWU">Discord</a>
+</p>
 
 </div>
 
 ---
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Platform Support](#platform-support)
+- [Download](#download)
+- [Building from Source](#building-from-source)
+- [Contributing](#contributing)
+- [Community](#community)
+- [Legal Notice](#legal-notice)
+- [License](#license)
+
 ## Overview
 
-NxEmu is a Nintendo Switch emulator written in C++. It is developed in the open and licensed under the GNU General Public License v3.0.
+NxEmu is a Nintendo Switch emulator written in C++ and developed in the open. The project targets Windows today, with macOS, Android, and Linux ports under active development. NxEmu is licensed under the GNU General Public License v3.0, and contributions from the community are welcome.
 
 ## Platform Support
 
-| Platform | Status               |
-|----------|----------------------|
-| Windows  | Supported            |
-| macOS    | In development       |
-| Android  | In development       |
-| Linux    | In development       |
+| Platform | Status         | Notes                                              |
+|----------|----------------|----------------------------------------------------|
+| Windows  | Supported      | Stable releases available on the downloads page    |
+| macOS    | In development | May be incomplete or unstable                      |
+| Android  | In development | May be incomplete or unstable                      |
+| Linux    | In development | May be incomplete or unstable                      |
 
-Support for macOS, Android, and Linux is under active development. These builds may be incomplete or unstable and are not yet recommended for general use.
+Builds for platforms marked "In development" are not yet recommended for general use.
 
 ## Download
 
-Stable Windows releases are available on the [downloads page](https://www.nxemu.com/downloads.html).
+Official stable releases for Windows are published on the [downloads page](https://www.nxemu.com/downloads.html). Release notes and previous versions are available under [GitHub Releases](https://github.com/N3xoX1/nxemu/releases).
 
 ## Building from Source
 
@@ -83,7 +97,14 @@ Contributions are welcome and appreciated.
 2. Implement and test your changes.
 3. Open a pull request describing what changed and why.
 
-To report a bug or request a feature, please [open an issue](https://github.com/N3xoX1/nxemu/issues). For questions and general discussion, join the community on [Discord](https://discord.gg/hEa4hNyFWU).
+To report a bug or request a feature, please [open an issue](https://github.com/N3xoX1/nxemu/issues) and include clear steps to reproduce, along with your platform and build version. For questions and general discussion, join the community on [Discord](https://discord.gg/hEa4hNyFWU).
+
+## Community
+
+- [Website](https://www.nxemu.com)
+- [About](https://www.nxemu.com/about.html)
+- [Downloads](https://www.nxemu.com/downloads.html)
+- [Discord](https://discord.gg/hEa4hNyFWU)
 
 ## Legal Notice
 
