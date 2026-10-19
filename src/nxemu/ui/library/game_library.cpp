@@ -1,0 +1,154 @@
+#include "game_library.h"
+#include "rom_properties.h"
+#include <algorithm>
+#include <filesystem>
+#include <nxemu-core/modules/system_modules.h>
+#include <nxemu/settings/ui_identifiers.h>
+#include <nxemu/settings/ui_settings.h>
+#include <yuzu_common/fs/filesystem_interfaces.h>
+#include <yuzu_common/fs/fs_util.h>
+#include <yuzu_common/fs/path_util.h>
+
+GameLibrary::GameLibrary() :
+    m_directories(uiSettings.gameDirectories)
+{
+}
+
+GameLibrary::~GameLibrary()
+{
+    StopScan();
+}
+
+bool GameLibrary::AddDirectory(const std::string & directory)
+{
+    if (directory.empty() || std::find(m_directories.begin(), m_directories.end(), directory) != m_directories.end())
+    {
+        return false;
+    }
+    m_directories.push_back(directory);
+    SetUISettingStringList(NXUISetting::GameDirectories, m_directories);
+    SaveUISetting();
+    return true;
+}
+
+bool GameLibrary::RemoveDirectory(const std::string & directory)
+{
+    const auto found = std::find(m_directories.begin(), m_directories.end(), directory);
+    if (found == m_directories.end())
+    {
+        return false;
+    }
+    m_directories.erase(found);
+    SetUISettingStringList(NXUISetting::GameDirectories, m_directories);
+    SaveUISetting();
+    return true;
+}
+
+const std::vector<std::string> & GameLibrary::RecentFiles() const
+{
+    return uiSettings.recentFiles;
+}
+
+void GameLibrary::AddRecentFile(const std::string & path)
+{
+    constexpr size_t kMaxRecentFiles = 10;
+    const auto samePath = [&path](const std::string & file) {
+#ifdef _WIN32
+        return _stricmp(file.c_str(), path.c_str()) == 0;
+#else
+        return file == path;
+#endif
+    };
+    Stringlist recentFiles = uiSettings.recentFiles;
+    recentFiles.erase(std::remove_if(recentFiles.begin(), recentFiles.end(), samePath), recentFiles.end());
+    recentFiles.insert(recentFiles.begin(), path);
+    if (recentFiles.size() > kMaxRecentFiles)
+    {
+        recentFiles.resize(kMaxRecentFiles);
+    }
+    SetUISettingStringList(NXUISetting::RecentFiles, recentFiles);
+    SaveUISetting();
+}
+
+void GameLibrary::StartScan(ISystemModules & modules)
+{
+    StopScan();
+    {
+        std::lock_guard<std::mutex> lock(m_foundMutex);
+        m_found.clear();
+    }
+    m_stop = false;
+    m_scanning = true;
+    m_thread = std::thread([this, &modules, directories = Directories()] { Scan(modules, directories); });
+}
+
+void GameLibrary::StopScan()
+{
+    m_stop = true;
+    if (m_thread.joinable())
+    {
+        m_thread.join();
+    }
+    m_scanning = false;
+}
+
+bool GameLibrary::TakeFound(std::vector<FoundGame> & games)
+{
+    std::lock_guard<std::mutex> lock(m_foundMutex);
+    if (m_found.empty())
+    {
+        return false;
+    }
+    games = std::move(m_found);
+    m_found.clear();
+    return true;
+}
+
+void GameLibrary::Scan(ISystemModules & modules, std::vector<std::string> directories)
+{
+    std::vector<const char *> paths;
+    for (const std::string & directory : directories)
+    {
+        paths.push_back(directory.c_str());
+    }
+    modules.Systemloader().ScanGameList(paths.data(), static_cast<uint32_t>(paths.size()), *this);
+    m_scanning = false;
+}
+
+bool GameLibrary::ScanStopRequested()
+{
+    return m_stop;
+}
+
+void GameLibrary::GameFound(const char * path, IRomInfo * romInfo, bool /*changed*/)
+{
+    IRomInfoPtr info(romInfo);
+    if (!info)
+    {
+        return;
+    }
+    FoundGame found;
+    GameEntry & game = found.game;
+    game.path = path;
+    if (info->ReadProgramId(game.programId) != LoaderResultStatus::Success)
+    {
+        game.programId = 0;
+    }
+    game.title = RomProperties::Title(*info);
+    if (game.title.empty())
+    {
+        game.title = Common::FS::PathToUTF8String(std::filesystem::path{Common::FS::ToU8String(game.path)}.filename());
+    }
+    game.version = RomProperties::Version(*info);
+    if (IFileSysNACPPtr control(info->GetControlMetadata()); control && control->GetDeveloperName() != nullptr)
+    {
+        game.publisher = control->GetDeveloperName();
+    }
+    std::error_code error;
+    const uintmax_t size = std::filesystem::file_size(std::filesystem::path{Common::FS::ToU8String(game.path)}, error);
+    game.size = error ? 0 : static_cast<uint64_t>(size);
+    found.icon = RomProperties::Icon(*info);
+
+    std::lock_guard<std::mutex> lock(m_foundMutex);
+    m_found.push_back(std::move(found));
+}

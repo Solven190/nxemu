@@ -1,5 +1,7 @@
 option(NXEMU_MACOS_BUNDLE "Build NxEmu as a macOS application bundle" ON)
 
+add_subdirectory(ui)
+
 add_executable(nxemu
     main.cpp
     startup_checks.cpp
@@ -9,10 +11,8 @@ add_executable(nxemu
     settings/ui_settings.cpp
     settings/ui_settings.h
     settings/ui_identifiers.h
-    user_interface/about_dialog.cpp
-    user_interface/about_dialog.h
-    user_interface/discord_presence.cpp
-    user_interface/discord_presence.h
+    user_interface/sciter_about_dialog.cpp
+    user_interface/sciter_about_dialog.h
     user_interface/game_list_worker.cpp
     user_interface/game_list_worker.h
     user_interface/hotkey_map.cpp
@@ -26,8 +26,6 @@ add_executable(nxemu
     user_interface/app_events.h
     user_interface/directory_watcher.cpp
     user_interface/directory_watcher.h
-    user_interface/file_dialogs.cpp
-    user_interface/file_dialogs.h
     user_interface/sciter_main_window.cpp
     user_interface/sciter_main_window.h
     user_interface/widgets/rom_browser.cpp
@@ -78,7 +76,6 @@ add_executable(nxemu
 
 if(APPLE)
     target_sources(nxemu PRIVATE
-        user_interface/file_dialogs_macos.mm
         user_interface/render_window_macos.mm
     )
     find_library(APPKIT_FRAMEWORK AppKit REQUIRED)
@@ -108,13 +105,8 @@ if(UNIX)
     target_compile_definitions(nxemu PRIVATE NXEMU_UNIX=1)
 endif()
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    find_package(PkgConfig REQUIRED)
-    pkg_check_modules(DBUS dbus-1 REQUIRED IMPORTED_TARGET)
-    target_link_libraries(nxemu PRIVATE PkgConfig::DBUS)
-endif()
-
 target_link_libraries(nxemu PRIVATE
+    nxemu_ui
     sciterui
     common
     yuzu_common
@@ -159,6 +151,7 @@ if(APPLE AND NXEMU_MACOS_BUNDLE)
         MACOSX_BUNDLE_SHORT_VERSION_STRING "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_REVISION}"
         MACOSX_BUNDLE_BUNDLE_VERSION "${VERSION_BUILD}"
         OUTPUT_NAME "NxEmu"
+        BUILD_RPATH "@executable_path/../Frameworks"
     )
     if(NOT NXEMU_MOLTENVK_RUNTIME OR NOT EXISTS "${_nxemu_sciter_lib}")
         message(FATAL_ERROR "The macOS bundle requires MoltenVK and Sciter")
@@ -177,7 +170,9 @@ if(APPLE AND NXEMU_MACOS_BUNDLE)
         "-DOS=$<TARGET_FILE:nxemu-os>"
         "-DMOLTENVK=${NXEMU_MOLTENVK_RUNTIME}"
         "-DSCITER=${_nxemu_sciter_lib}"
+        "-DSDL=$<TARGET_FILE:SDL2::SDL2>"
         "-DLANG=${CMAKE_SOURCE_DIR}/lang"
+        "-DUI_ASSETS=${CMAKE_CURRENT_SOURCE_DIR}/ui/assets"
         "-DCODESIGN=${NXEMU_CODESIGN}"
         "-DINFO_PLIST=${CMAKE_CURRENT_SOURCE_DIR}/macos/Info.plist.in"
         "-DICON=${_nxemu_icon}"
@@ -223,6 +218,7 @@ else()
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 "${NXEMU_MOLTENVK_RUNTIME}" "$<TARGET_FILE_DIR:nxemu>/libMoltenVK.dylib"
             COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/lang" "$<TARGET_FILE_DIR:nxemu>/lang"
+            COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/ui/assets" "$<TARGET_FILE_DIR:nxemu>/ui"
             COMMAND ${CMAKE_COMMAND} -E make_directory
                 "$<TARGET_FILE_DIR:nxemu>/modules/loader"
                 "$<TARGET_FILE_DIR:nxemu>/modules/cpu"

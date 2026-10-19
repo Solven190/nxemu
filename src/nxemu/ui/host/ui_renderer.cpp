@@ -10,6 +10,7 @@ namespace
 constexpr VkFormat kColorFormat = VK_FORMAT_R8G8B8A8_UNORM;
 constexpr uint32_t kSetsPerPool = 256;
 constexpr VkDeviceSize kMemoryBlockBytes = 16 * 1024 * 1024;
+constexpr const char * kMemoryScheme = "nxmem:";
 
 std::vector<uint8_t> ReadFile(const Rml::String & source)
 {
@@ -185,6 +186,34 @@ bool UiRenderer::ChooseFormats()
         properties.limits.framebufferStencilSampleCounts & color.sampleCounts & stencil.sampleCounts;
     m_samples = (supported & VK_SAMPLE_COUNT_4_BIT) != 0 ? VK_SAMPLE_COUNT_4_BIT : VK_SAMPLE_COUNT_1_BIT;
     return true;
+}
+
+std::vector<UiRenderer::GraphicsDevice> UiRenderer::GraphicsDevices() const
+{
+    std::vector<GraphicsDevice> result;
+    if (!IsBound())
+    {
+        return result;
+    }
+    uint32_t count = 0;
+    if (m_api.EnumeratePhysicalDevices(m_context.instance, &count, nullptr) != VK_SUCCESS || count == 0)
+    {
+        return result;
+    }
+    std::vector<VkPhysicalDevice> devices(count);
+    const VkResult listed = m_api.EnumeratePhysicalDevices(m_context.instance, &count, devices.data());
+    if (listed != VK_SUCCESS && listed != VK_INCOMPLETE)
+    {
+        return result;
+    }
+    devices.resize(count);
+    for (const VkPhysicalDevice device : devices)
+    {
+        VkPhysicalDeviceProperties properties{};
+        m_api.GetPhysicalDeviceProperties(device, &properties);
+        result.push_back({properties.deviceName, properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU, device == m_context.physicalDevice});
+    }
+    return result;
 }
 
 bool UiRenderer::CreateSamplers()
@@ -641,6 +670,21 @@ void UiRenderer::FlushUploads()
     m_uploads.clear();
 }
 
+std::string UiRenderer::AddMemoryImage(std::vector<uint8_t> encoded)
+{
+    std::string source = kMemoryScheme + std::to_string(m_nextMemoryImage++);
+    m_memoryImages.emplace(source, std::move(encoded));
+    return source;
+}
+
+void UiRenderer::RemoveMemoryImage(const std::string & source)
+{
+    if (m_memoryImages.erase(source) != 0)
+    {
+        Rml::ReleaseTexture(source);
+    }
+}
+
 void UiRenderer::BeginFrame(VkCommandBuffer commandBuffer, int width, int height)
 {
     FlushRetired();
@@ -734,6 +778,11 @@ void UiRenderer::ReleaseGeometry(Rml::CompiledGeometryHandle handle)
         DestroyBuffer(geometry->buffer);
         delete geometry;
     });
+}
+
+std::string UiRenderer::FileImageSource(const std::string & utf8Path)
+{
+    return utf8Path.starts_with('/') ? "/" + utf8Path : utf8Path;
 }
 
 Rml::TextureHandle UiRenderer::LoadTexture(Rml::Vector2i & dimensions, const Rml::String & source)

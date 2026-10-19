@@ -2,7 +2,7 @@
 #include "applets/profile_select.h"
 #include "applets/web_browser.h"
 #include "startup_checks.h"
-#include "user_interface/discord_presence.h"
+#include "ui/host/discord_presence.h"
 #include "user_interface/widgets/rom_browser.h"
 #include <atomic>
 #include <deque>
@@ -32,7 +32,7 @@ struct Win32FullscreenState
 class SystemConfig;
 class GameConfig;
 class InputConfig;
-class AboutDialog;
+class SciterAboutDialog;
 
 class SciterMainWindow :
     public IWindowDestroySink,
@@ -127,7 +127,6 @@ private:
     static void GameNameChanged(const char * setting, void * userData);
     static void DisplayedFramesChanged(const char * setting, void * userData);
     static void DiskCacheLoadChanged(const char * setting, void * userData);
-    static void FirmwareInstallTotalChanged(const char * setting, void * userData);
     static void HotKeysChanged(const char * setting, void * userData);
     void UpdateStatusWidgets();
     void UpdateInputDrivers();
@@ -240,7 +239,7 @@ private:
     uint64_t m_pendingGameConfigProgramId;
     uint64_t m_pendingSaveDataProgramId;
     std::unique_ptr<InputConfig> m_inputConfig;
-    std::unique_ptr<AboutDialog> m_aboutDialog;
+    std::unique_ptr<SciterAboutDialog> m_aboutDialog;
     ProfileSelectApplet m_ProfileSelect;
     WebBrowserApplet m_WebBrowser;
     float m_resolutionUpFactor;
@@ -259,7 +258,17 @@ private:
     std::unique_ptr<Win32FullscreenState> m_win32Fullscreen;
     bool m_firmwareInstallInProgress;
     bool m_firmwareInstallUiActive;
-    int32_t m_firmwareInstallLastTotal;
+    class FirmwareObserver final : public IFirmwareInstallObserver
+    {
+    public:
+        bool FirmwareInstallProgress(FirmwareInstallStage stage, uint64_t done, uint64_t total) override;
+        bool ConfirmFirmwareReplacement(const char * packageVersion, const char * installedVersion) override;
+
+        std::atomic<uint32_t> stage{0};
+        std::atomic<uint64_t> done{0};
+        std::atomic<uint64_t> total{0};
+    };
+    FirmwareObserver m_firmwareObserver;
     std::thread m_firmwareInstallThread;
     bool m_mouseCursorHidden;
     uint64_t m_lastMouseActivityTick;

@@ -2,9 +2,11 @@
 #include "vulkan/vma.h"
 #include <RmlUi/Core/RenderInterface.h>
 #include <RmlUi/Core/Types.h>
+#include <array>
 #include <chrono>
 #include <cstdint>
 #include <functional>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -20,6 +22,18 @@ public:
     void Unbind();
     bool IsBound() const { return m_context.device != VK_NULL_HANDLE; }
     const std::string & Error() const { return m_error; }
+
+    struct GraphicsDevice
+    {
+        std::string name;
+        bool integrated;
+        bool inUse;
+    };
+    std::vector<GraphicsDevice> GraphicsDevices() const;
+
+    static std::string FileImageSource(const std::string & utf8Path);
+    std::string AddMemoryImage(std::vector<uint8_t> encoded);
+    void RemoveMemoryImage(const std::string & source);
 
     void BeginFrame(VkCommandBuffer commandBuffer, int width, int height);
     void EndFrame(VkImage output);
@@ -223,6 +237,7 @@ private:
     std::vector<std::function<void()>> m_retired;
     std::vector<Upload> m_uploads;
     std::unordered_map<std::string, std::vector<uint8_t>> m_memoryImages;
+    uint64_t m_nextMemoryImage = 0;
 
     Image m_stencil;
     bool m_stencilReady = false;
