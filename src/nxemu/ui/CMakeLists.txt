@@ -13,10 +13,14 @@ add_library(nxemu_ui STATIC
     emulation/emulator_session.h
     host/discord_presence.cpp
     host/discord_presence.h
+    host/process_usage.cpp
+    host/process_usage.h
     host/sdl_input.cpp
     host/sdl_input.h
     host/shell.cpp
     host/shell.h
+    host/system_language.cpp
+    host/system_language.h
     host/system_fonts.cpp
     host/system_fonts.h
     host/ui_notification.cpp
@@ -45,6 +49,8 @@ add_library(nxemu_ui STATIC
     library/firmware_avatars.h
     library/firmware_installer.cpp
     library/firmware_installer.h
+    library/interface_language.cpp
+    library/interface_language.h
     library/game_cache.cpp
     library/game_cache.h
     library/game_details.cpp
@@ -58,18 +64,24 @@ add_library(nxemu_ui STATIC
     platform/file_dialogs.cpp
     platform/file_dialogs.h
     platform/native_window.h
+    platform/system_theme.cpp
+    platform/system_theme.h
     views/main_window.cpp
     views/main_window.h
     views/menu_bar.cpp
     views/menu_bar.h
     views/message_dialog.cpp
     views/message_dialog.h
+    views/performance_overlay.cpp
+    views/performance_overlay.h
     views/popup_menu.cpp
     views/popup_menu.h
     views/rml_events.cpp
     views/rml_events.h
     views/dialog.cpp
     views/dialog.h
+    views/game_details_panel.cpp
+    views/game_details_panel.h
     views/general_dialog.cpp
     views/general_dialog.h
     views/resolution_scales.h

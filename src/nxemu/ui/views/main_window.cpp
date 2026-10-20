@@ -25,6 +25,7 @@
 #include <nxemu/ui/library/game_cache.h>
 #include <nxemu/ui/library/firmware_avatars.h>
 #include <nxemu/ui/library/game_details.h>
+#include <nxemu/ui/library/interface_language.h>
 #include <nxemu/ui/platform/file_dialogs.h>
 #include <tuple>
 #include <yuzu_common/fs/filesystem_interfaces.h>
@@ -53,6 +54,12 @@ constexpr int kCoverTitleDelayMs = 1200; // a cover names its game to a mouse th
 constexpr int kScrollbarWidth = 12;
 constexpr uint64_t kIconSizeSaveDelayMs = 400;
 constexpr int kFilterSharpnessRange = 1;
+constexpr float kScanStepShare = 0.85f;
+constexpr float kScanEaseSeconds = 0.7f;
+constexpr uint64_t kScanIndicatorDelayMs = 250;
+constexpr int kPerformanceSizeRange = 2;
+constexpr int kPerformanceRateRange = 3;
+constexpr int kPerformanceLengthRange = 4;
 constexpr uint64_t kGameHintMs = 4000;
 constexpr uint64_t kMouseHideMs = 2500;
 
@@ -176,6 +183,7 @@ MainWindow::~MainWindow()
 
 bool MainWindow::Create()
 {
+    m_interfaceLanguage = InterfaceLanguage::Code();
     m_document = Translation::LoadDocument(*m_window.Context(), m_assetDir / "main_window.rml");
     if (m_document == nullptr)
     {
@@ -203,6 +211,10 @@ bool MainWindow::Create()
                                                             },
                                                         });
     m_tooltip = std::make_unique<Tooltip>(m_window.Context(), m_assetDir);
+    m_performance = std::make_unique<PerformanceOverlay>(m_document->GetElementById("performance"));
+    m_detailsPanel = std::make_unique<GameDetailsPanel>(m_document->GetElementById("games-details"), [this](size_t index) {
+        Post(static_cast<Action>(static_cast<int>(Action::AddOnFirst) + static_cast<int>(index)));
+    });
     m_generalDialog = std::make_unique<GeneralDialog>(m_window, m_session, m_settingsContext, m_assetDir, GeneralDialog::Host{[this] { UpdateStatusWidgets(); }, openPage});
     m_advancedDialog = std::make_unique<AdvancedDialog>(m_window, m_session, m_settingsContext, m_assetDir, openPage);
     m_controllerDialog = std::make_unique<ControllerDialog>(m_window, m_session, m_assetDir);
@@ -354,6 +366,11 @@ void MainWindow::Update()
         m_quit = true;
         return;
     }
+    if (m_detailsReload && !m_session.IsRunning() && !m_session.ReleasePending())
+    {
+        m_detailsReload = false;
+        RequestSelectedDetails();
+    }
     m_aboutDialog->Update();
     m_firmwareDialog->Update();
     m_controllerDialog->Update();
@@ -361,19 +378,35 @@ void MainWindow::Update()
     m_advancedDialog->Update();
     m_directoriesDialog->Update();
     m_profilesDialog->Update();
-    if (m_library.Scanning() != m_gamesScanning)
-    {
-        m_gamesScanning = !m_gamesScanning;
-        m_gamesDirty = true;
-    }
+    SyncInterfaceLanguage();
     std::vector<FoundGame> found;
     if (m_library.TakeFound(found))
     {
         AddGames(std::move(found));
     }
+    if (m_library.Scanning() != m_gamesScanning)
+    {
+        m_gamesScanning = !m_gamesScanning;
+        m_gamesDirty = true;
+        if (!m_gamesScanning && m_rescanning)
+        {
+            FinishRescan();
+        }
+    }
+    UpdateScanIndicator();
     if (m_gamesDirty)
     {
         RenderGames();
+    }
+    GameDetails details;
+    if (m_library.TakeDetails(details) && details.path == m_selectedPath)
+    {
+        m_details = std::move(details);
+        m_detailsDirty = true;
+    }
+    if (m_detailsDirty)
+    {
+        RenderDetails();
     }
     RenderVisibleGames();
     LoadPendingIcons();
@@ -403,7 +436,7 @@ void MainWindow::Update()
     }
     SyncWindowState();
     UpdateMouseCursor();
-    if (const uint64_t now = SDL_GetTicks64(); now - m_lastMeasure >= kStatusIntervalMs)
+    if (const uint64_t now = SDL_GetTicks64(); now - m_lastMeasure >= (m_performance->Shown() ? m_performance->Interval() : kStatusIntervalMs))
     {
         m_lastMeasure = now;
         MeasureGame();
@@ -460,6 +493,10 @@ void MainWindow::OnModulesReleasing()
         m_library.StopScan();
         m_rescanGames = true;
     }
+    m_library.StopDetails();
+    m_details = {};
+    m_detailsDirty = true;
+    m_detailsReload = true;
     m_controllerDialog->Abandon();
     m_profilesDialog->Abandon();
     m_window.DetachVideo();
@@ -600,6 +637,21 @@ void MainWindow::Run(Action action)
         SaveUISetting();
         m_menuDirty = true;
         break;
+    case Action::TogglePerformance:
+        uiSettings.showPerformance = !uiSettings.showPerformance;
+        SaveUISetting();
+        m_menuDirty = true;
+        break;
+    case Action::TogglePerformanceHistory:
+    case Action::TogglePerformanceRange:
+    case Action::TogglePerformanceFrameTime:
+    case Action::TogglePerformanceLongest:
+    case Action::TogglePerformanceSpeed:
+    case Action::TogglePerformanceProcessor:
+    case Action::TogglePerformanceMemory:
+        m_performance->Toggle(static_cast<PerformanceItem>(static_cast<int>(action) - static_cast<int>(Action::TogglePerformanceHistory)));
+        m_menuDirty = true;
+        break;
     case Action::ToggleHideUi:
         if (m_session.IsRunning())
         {
@@ -646,6 +698,8 @@ void MainWindow::Run(Action action)
                     const std::string failure = Tr("Could not clear the cache: %1", {error});
                     g_notify->DisplayError(failure.c_str(), title.c_str());
                 }
+                m_details = {};
+                RequestSelectedDetails();
             }
         }
         break;
@@ -653,6 +707,28 @@ void MainWindow::Run(Action action)
     case Action::ToggleDockedMode: SetDockedMode(!IsDocked()); break;
     case Action::SetDockedMode: SetDockedMode(true); break;
     case Action::SetHandheldMode: SetDockedMode(false); break;
+    case Action::ToggleGameDetails:
+        uiSettings.showGameDetails = !uiSettings.showGameDetails;
+        SaveUISetting();
+        ApplyLibraryOptions();
+        RequestSelectedDetails();
+        break;
+    case Action::OpenSelectedSaveDirectory:
+    case Action::OpenSelectedCacheDirectory:
+    case Action::OpenSelectedModDirectory:
+        if (m_details.path == m_selectedPath)
+        {
+            const std::string & directory = action == Action::OpenSelectedSaveDirectory    ? m_details.saveDirectory
+                                            : action == Action::OpenSelectedCacheDirectory ? m_details.cacheDirectory
+                                                                                           : m_details.modDirectory;
+            if (!directory.empty())
+            {
+                std::error_code error;
+                std::filesystem::create_directories(std::filesystem::path{Common::FS::ToU8String(directory)}, error);
+                OpenDirectory(directory);
+            }
+        }
+        break;
     case Action::PlaySelectedGame:
         if (!m_selectedPath.empty())
         {
@@ -765,6 +841,12 @@ void MainWindow::Run(Action action)
             m_gamesDirty = true;
             break;
         }
+        const int addOn = static_cast<int>(action) - static_cast<int>(Action::AddOnFirst);
+        if (addOn >= 0 && static_cast<int>(action) < static_cast<int>(Action::RecentFileFirst))
+        {
+            ToggleAddOn(static_cast<size_t>(addOn));
+            break;
+        }
         const size_t recent = static_cast<size_t>(static_cast<int>(action) - static_cast<int>(Action::RecentFileFirst));
         if (static_cast<int>(action) >= static_cast<int>(Action::RecentFileFirst) && recent < m_library.RecentFiles().size())
         {
@@ -792,6 +874,18 @@ void MainWindow::BindEvents()
     const auto onClick = [this](const char * id, Action action) {
         UiEvents::Listen(m_document->GetElementById(id), "click", [this, action](Rml::Event &) { Post(action); });
     };
+    onClick("games-details-toggle", Action::ToggleGameDetails);
+    for (const auto & [id, action] : {std::pair{"details-play", Action::PlaySelectedGame}, std::pair{"details-save", Action::OpenSelectedSaveDirectory},
+                                      std::pair{"details-cache", Action::OpenSelectedCacheDirectory}, std::pair{"details-mods", Action::OpenSelectedModDirectory}})
+    {
+        Rml::Element * button = m_document->GetElementById(id);
+        UiEvents::Listen(button, "click", [this, button, action = action](Rml::Event &) {
+            if (!button->IsClassSet("locked"))
+            {
+                Post(action);
+            }
+        });
+    }
     onClick("card-information", Action::ToggleCardInformation);
     onClick("view-grid", Action::ShowGridView);
     onClick("view-list", Action::ShowListView);
@@ -960,6 +1054,23 @@ void MainWindow::RebuildMenu()
         action(Action::ResetWindowSize900p, "900p"),
         action(Action::ResetWindowSize1080p, "1080p"),
     }));
+    std::vector<MenuItem> performance;
+    performance.push_back(check(Action::TogglePerformance, Tr("Show performance"), uiSettings.showPerformance));
+    performance.push_back(MenuItem::Separator());
+    for (const PerformanceOverlay::Item & item : PerformanceOverlay::kItems)
+    {
+        const Action id = static_cast<Action>(static_cast<int>(Action::TogglePerformanceHistory) + static_cast<int>(item.id));
+        performance.push_back(check(id, Tr(item.label), PerformanceOverlay::Has(item.id)));
+    }
+    performance.push_back(MenuItem::Separator());
+    performance.push_back(MenuItem::Slider(Tr("Size"), {kPerformanceSizeRange, PerformanceOverlay::kLargest, PerformanceOverlay::Size(), true, {}, PerformanceOverlay::kSmallest,
+                                                        PerformanceOverlay::kSizeStep}));
+    performance.push_back(MenuItem::Slider(Tr("Measures per second"), {kPerformanceRateRange, PerformanceOverlay::kFastest, PerformanceOverlay::Rate(), true, {},
+                                                                       PerformanceOverlay::kSlowest, 1, ""}));
+    performance.push_back(MenuItem::Slider(Tr("History length"), {kPerformanceLengthRange, PerformanceOverlay::kLongest, PerformanceOverlay::Length(), true,
+                                                                  Tr("How many measures the history shows"), PerformanceOverlay::kShortest, 1, ""}));
+    emulation.push_back(MenuItem::Separator());
+    emulation.push_back(MenuItem::Submenu(Tr("Performance overlay"), std::move(performance)));
     emulation.push_back(MenuItem::Separator());
     emulation.push_back(check(Action::ToggleStartGamesInFullscreen, Tr("Start games in fullscreen"), uiSettings.startGamesInFullscreen));
     emulation.push_back(check(Action::ToggleStartGamesWithUiHidden, Tr("Start games with UI hidden"), uiSettings.startGamesWithUiHidden));
@@ -976,13 +1087,18 @@ void MainWindow::RebuildMenu()
 
 void MainWindow::AddGames(std::vector<FoundGame> found)
 {
+    std::vector<GameEntry> & games = m_rescanning ? m_nextGames : m_games;
     for (FoundGame & entry : found)
     {
         if (!entry.icon.empty())
         {
             entry.game.icon = m_window.Renderer().AddMemoryImage(std::move(entry.icon));
         }
-        m_games.push_back(std::move(entry.game));
+        games.push_back(std::move(entry.game));
+    }
+    if (m_rescanning)
+    {
+        return;
     }
     std::stable_sort(m_games.begin(), m_games.end(), [](const GameEntry & left, const GameEntry & right) {
         return std::forward_as_tuple(Folded(left.title), left.path) < std::forward_as_tuple(Folded(right.title), right.path);
@@ -993,7 +1109,46 @@ void MainWindow::AddGames(std::vector<FoundGame> found)
 
 void MainWindow::RescanGames()
 {
-    for (const GameEntry & game : m_games)
+    ReleaseIcons(m_nextGames);
+    m_nextGames.clear();
+    m_rescanning = !m_games.empty();
+    m_library.StartScan(m_session.Modules());
+    m_gamesDirty = true;
+}
+
+void MainWindow::FinishRescan()
+{
+    m_rescanning = false;
+    if (!m_library.ScanCompleted())
+    {
+        ReleaseIcons(m_nextGames);
+        m_nextGames.clear();
+        return;
+    }
+    std::stable_sort(m_nextGames.begin(), m_nextGames.end(), [](const GameEntry & left, const GameEntry & right) {
+        return std::forward_as_tuple(Folded(left.title), left.path) < std::forward_as_tuple(Folded(right.title), right.path);
+    });
+    const auto same = [](const GameEntry & left, const GameEntry & right) {
+        return left.path == right.path && left.programId == right.programId && left.title == right.title && left.version == right.version &&
+               left.publisher == right.publisher && left.size == right.size && left.icon.empty() == right.icon.empty();
+    };
+    if (std::equal(m_games.begin(), m_games.end(), m_nextGames.begin(), m_nextGames.end(), same))
+    {
+        ReleaseIcons(m_nextGames);
+    }
+    else
+    {
+        ReleaseIcons(m_games);
+        m_games.swap(m_nextGames);
+        m_selectedGame = nullptr;
+        m_gamesDirty = true;
+    }
+    m_nextGames.clear();
+}
+
+void MainWindow::ReleaseIcons(const std::vector<GameEntry> & games)
+{
+    for (const GameEntry & game : games)
     {
         if (!game.icon.empty())
         {
@@ -1001,10 +1156,38 @@ void MainWindow::RescanGames()
             m_window.Renderer().RemoveMemoryImage(game.icon);
         }
     }
-    m_games.clear();
-    m_selectedGame = nullptr;
-    m_library.StartScan(m_session.Modules());
-    m_gamesDirty = true;
+}
+
+void MainWindow::UpdateScanIndicator()
+{
+    Rml::Element * indicator = m_document->GetElementById("games-scan-indicator");
+    Rml::Element * fill = m_document->GetElementById("games-scan-fill");
+    if (indicator == nullptr || fill == nullptr)
+    {
+        return;
+    }
+    const uint64_t now = SDL_GetTicks64();
+    const float elapsed = static_cast<float>(now - m_scanIndicatorTime) / 1000.0f;
+    m_scanIndicatorTime = now;
+    if (!m_library.ReadingGames())
+    {
+        indicator->SetClass("active", false);
+        m_scanReadingSince = 0;
+        m_scanIndicatorShown = 0.0f;
+        return;
+    }
+    if (m_scanReadingSince == 0)
+    {
+        m_scanReadingSince = now;
+    }
+    indicator->SetClass("active", now - m_scanReadingSince >= kScanIndicatorDelayMs);
+    const uint32_t total = m_library.FilesTotal();
+    const float target = total != 0 ? (static_cast<float>(m_library.FilesStarted()) - (1.0f - kScanStepShare)) / static_cast<float>(total) : 0.0f;
+    if (target > m_scanIndicatorShown)
+    {
+        m_scanIndicatorShown += (target - m_scanIndicatorShown) * (1.0f - std::exp(-elapsed / kScanEaseSeconds));
+    }
+    fill->SetProperty(Rml::PropertyId::Width, Rml::Property(m_scanIndicatorShown * 100.0f, Rml::Unit::PERCENT));
 }
 
 void MainWindow::RenderGames()
@@ -1328,6 +1511,8 @@ void MainWindow::ApplyLibraryOptions()
     setClass("play-time", "on", playTime);
     setClass("view-grid", "active", !list);
     setClass("view-list", "active", list);
+    setClass("games-details-toggle", "active", uiSettings.showGameDetails);
+    setClass("rom-browser-panel", "details-open", uiSettings.showGameDetails);
     setClass("games-list-header", "shown", list);
     if (Rml::Element * header = m_document->GetElementById("games-list-header"))
     {
@@ -1390,6 +1575,18 @@ void MainWindow::FitWindowToCards()
 
 void MainWindow::SetMenuRange(int id, int value)
 {
+    if (id == kPerformanceSizeRange)
+    {
+        m_performance->SetSize(value);
+    }
+    else if (id == kPerformanceRateRange)
+    {
+        m_performance->SetRate(value);
+    }
+    else if (id == kPerformanceLengthRange)
+    {
+        m_performance->SetLength(value);
+    }
     if (id == kFilterSharpnessRange && value != SettingsStore::GetInstance().GetInt(NXVideoSetting::FSPSharpness))
     {
         SettingsStore::GetInstance().SetInt(NXVideoSetting::FSPSharpness, value);
@@ -1595,12 +1792,65 @@ float MainWindow::CardStep() const
     return static_cast<float>(m_iconSize + 2 * kCardBorder + (GameIconStep(m_iconSize) == 1 ? kSmallCardGap : kCardGap)) * ratio;
 }
 
+const GameEntry * MainWindow::SelectedGame() const
+{
+    const auto game = std::find_if(m_games.begin(), m_games.end(), [this](const GameEntry & entry) { return entry.path == m_selectedPath; });
+    return game != m_games.end() ? &*game : nullptr;
+}
+
+void MainWindow::RequestSelectedDetails()
+{
+    if (SelectedGame() != nullptr && m_details.path != m_selectedPath && !m_session.IsRunning() && uiSettings.showGameDetails)
+    {
+        m_library.RequestDetails(m_session.Modules(), m_selectedPath);
+    }
+}
+
+void MainWindow::RenderDetails()
+{
+    m_detailsDirty = false;
+    const GameEntry * game = SelectedGame();
+    if (game == nullptr)
+    {
+        m_detailsPanel->Clear();
+        return;
+    }
+    const PlayTime::Record played = m_playTime.Of(game->programId);
+    m_detailsPanel->ShowGame(game->title, game->icon,
+                             {
+                                 {Tr("Version"), game->version.empty() ? std::string() : "v" + game->version},
+                                 {Tr("Publisher"), game->publisher},
+                                 {Tr("Format"), FileFormat(game->path)},
+                                 {Tr("Size"), FileSize(game->size)},
+                                 {Tr("Last played"), PlayTime::Date(played.lastPlayed)},
+                                 {Tr("Play time"), PlayTime::Duration(played.seconds)},
+                                 {Tr("Title ID"), game->programId != 0 ? std::string(stdstr_f("%016llX", static_cast<unsigned long long>(game->programId))) : std::string()},
+                             });
+    m_detailsPanel->ShowDetails(m_details.path == m_selectedPath && m_details.programId != 0 ? &m_details : nullptr, m_session.IsRunning());
+}
+
+void MainWindow::ToggleAddOn(size_t index)
+{
+    if (m_details.path != m_selectedPath || index >= m_details.addOns.size() || m_session.IsRunning())
+    {
+        return;
+    }
+    const std::vector<std::string> disabled = GameDetailsReader::DisabledAfterToggle(m_details, index);
+    for (GameAddOn & addOn : m_details.addOns)
+    {
+        addOn.enabled = std::find(disabled.begin(), disabled.end(), addOn.key) == disabled.end();
+    }
+    m_detailsDirty = true;
+    m_library.RequestDetails(m_session.Modules(), m_selectedPath, m_details.programId, disabled);
+}
+
 void MainWindow::SelectGame(Rml::Element * card)
 {
     if (card == m_selectedGame && (card != nullptr || m_selectedPath.empty()))
     {
         return;
     }
+    m_detailsDirty = true;
     if (m_selectedGame != nullptr)
     {
         m_selectedGame->SetClass("selected", false);
@@ -1618,6 +1868,7 @@ void MainWindow::SelectGame(Rml::Element * card)
             m_selectedProgramId = m_games[index].programId;
         }
     }
+    RequestSelectedDetails();
 }
 
 bool MainWindow::ShowSettingsPage(SettingsPage page)
@@ -1671,6 +1922,44 @@ void MainWindow::ShowPanel(Panel panel)
     m_document->SetClass("video-visible", panel == Panel::Renderer || panel == Panel::Pause);
 }
 
+void MainWindow::SyncInterfaceLanguage()
+{
+    const std::string language = InterfaceLanguage::Code();
+    if (language == m_interfaceLanguage)
+    {
+        return;
+    }
+    m_interfaceLanguage = language;
+    InterfaceLanguage::Use(language, m_assetDir);
+
+    Translation::RefreshDocument(*m_document);
+    m_aboutDialog->RefreshTranslation();
+    m_firmwareDialog->RefreshTranslation();
+    m_controllerDialog->RefreshTranslation();
+    m_advancedDialog->RefreshLanguage();
+    m_directoriesDialog->RefreshTranslation();
+    m_profilesDialog->RefreshTranslation();
+    m_generalDialog->RefreshLanguage();
+
+    m_menuBar->Close();
+    m_gameMenu->Close();
+    m_pendingGameMenu = nullptr;
+    m_pendingSelectMenu = nullptr;
+    RebuildMenu();
+    ApplyLibraryOptions();
+    RenderGames();
+    RenderVisibleGames();
+    RenderDetails();
+    UpdateScanIndicator();
+    SyncPhase();
+    UpdateStatusWidgets();
+    UpdateStatusText();
+    if (m_phase == EmulatorSession::Phase::Loading)
+    {
+        UpdateLoadingScreen();
+    }
+}
+
 void MainWindow::SyncPhase()
 {
     const EmulatorSession::Phase phase = m_session.CurrentPhase();
@@ -1712,6 +2001,8 @@ void MainWindow::SyncPhase()
         if (phase == EmulatorSession::Phase::Idle)
         {
             m_playingProgram = 0;
+            m_details = {};
+            RequestSelectedDetails();
             m_gamesDirty = true;
             m_hideUi = false;
             m_window.SetFullscreen(false);
@@ -1755,6 +2046,7 @@ void MainWindow::SyncPhase()
         ShowPanel(Panel::Loading);
     }
     SetUiHidden(m_phase != EmulatorSession::Phase::Idle && (m_hideUi || m_window.IsFullscreen()));
+    m_performance->Show(uiSettings.showPerformance && m_gameShown && m_phase != EmulatorSession::Phase::Idle);
 }
 
 void MainWindow::UpdateDiscord()
@@ -1979,9 +2271,18 @@ void MainWindow::ResetWindowSize(int width, int height)
 void MainWindow::MeasureGame()
 {
     m_speedText.clear();
+    const bool measured = m_longestMeasured;
+    m_longestMeasured = false;
     if (m_session.IsRunning())
     {
-        const PerfStatsResults stats = m_session.Modules().OperatingSystem().GetAndResetPerfStats();
+        IOperatingSystem & os = m_session.Modules().OperatingSystem();
+        m_longestMeasured = m_performance->Shown();
+        os.MeasureGameFrames(m_longestMeasured);
+        const PerfStatsResults stats = os.GetAndResetPerfStats();
+        if (measured && m_longestMeasured && !os.IsEmulationPaused())
+        {
+            m_performance->Add(stats, m_session.Modules().Video().ShadersBuilding(), !SettingsStore::GetInstance().GetBool(NXOsSetting::UseSpeedLimit));
+        }
         if (std::isfinite(stats.average_game_fps) && stats.average_game_fps != 0)
         {
             const double frametime = std::isfinite(stats.frametime) ? stats.frametime * 1000.0 : 0.0;

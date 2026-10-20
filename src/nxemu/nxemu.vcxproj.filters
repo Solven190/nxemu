@@ -198,6 +198,15 @@
     <ClCompile Include="ui\platform\file_dialogs.cpp">
       <Filter>Source Files\ui\platform</Filter>
     </ClCompile>
+    <ClCompile Include="ui\platform\system_theme.cpp">
+      <Filter>Source Files\ui\platform</Filter>
+    </ClCompile>
+    <ClCompile Include="ui\host\system_language.cpp">
+      <Filter>Source Files\ui\host</Filter>
+    </ClCompile>
+    <ClCompile Include="ui\library\interface_language.cpp">
+      <Filter>Source Files\ui\library</Filter>
+    </ClCompile>
     <ClCompile Include="ui\ui_application.cpp">
       <Filter>Source Files\ui</Filter>
     </ClCompile>
@@ -335,6 +344,15 @@
     <ClInclude Include="ui\platform\file_dialogs.h">
       <Filter>Header Files\ui\platform</Filter>
     </ClInclude>
+    <ClInclude Include="ui\platform\system_theme.h">
+      <Filter>Header Files\ui\platform</Filter>
+    </ClInclude>
+    <ClInclude Include="ui\host\system_language.h">
+      <Filter>Header Files\ui\host</Filter>
+    </ClInclude>
+    <ClInclude Include="ui\library\interface_language.h">
+      <Filter>Header Files\ui\library</Filter>
+    </ClInclude>
     <ClInclude Include="ui\ui_application.h">
       <Filter>Header Files\ui</Filter>
     </ClInclude>
@@ -403,6 +421,9 @@
     <ClCompile Include="ui\views\message_dialog.cpp">
       <Filter>Source Files\ui\views</Filter>
     </ClCompile>
+    <ClCompile Include="ui\views\performance_overlay.cpp">
+      <Filter>Source Files\ui\views</Filter>
+    </ClCompile>
     <ClCompile Include="ui\views\popup_menu.cpp">
       <Filter>Source Files\ui\views</Filter>
     </ClCompile>
@@ -445,6 +466,9 @@
     <ClCompile Include="ui\host\discord_presence.cpp">
       <Filter>Source Files\ui\host</Filter>
     </ClCompile>
+    <ClCompile Include="ui\host\process_usage.cpp">
+      <Filter>Source Files\ui\host</Filter>
+    </ClCompile>
     <ClCompile Include="ui\host\sdl_input.cpp">
       <Filter>Source Files\ui\host</Filter>
     </ClCompile>
@@ -458,6 +482,9 @@
       <Filter>Source Files\ui\library</Filter>
     </ClCompile>
     <ClCompile Include="ui\views\dialog.cpp">
+      <Filter>Source Files\ui\views</Filter>
+    </ClCompile>
+    <ClCompile Include="ui\views\game_details_panel.cpp">
       <Filter>Source Files\ui\views</Filter>
     </ClCompile>
     <ClCompile Include="ui\views\general_dialog.cpp">
@@ -529,6 +556,9 @@
     <ClInclude Include="ui\views\message_dialog.h">
       <Filter>Header Files\ui\views</Filter>
     </ClInclude>
+    <ClInclude Include="ui\views\performance_overlay.h">
+      <Filter>Header Files\ui\views</Filter>
+    </ClInclude>
     <ClInclude Include="ui\views\popup_menu.h">
       <Filter>Header Files\ui\views</Filter>
     </ClInclude>
@@ -571,6 +601,9 @@
     <ClInclude Include="ui\host\discord_presence.h">
       <Filter>Header Files\ui\host</Filter>
     </ClInclude>
+    <ClInclude Include="ui\host\process_usage.h">
+      <Filter>Header Files\ui\host</Filter>
+    </ClInclude>
     <ClInclude Include="ui\host\sdl_input.h">
       <Filter>Header Files\ui\host</Filter>
     </ClInclude>
@@ -584,6 +617,9 @@
       <Filter>Header Files\ui\library</Filter>
     </ClInclude>
     <ClInclude Include="ui\views\dialog.h">
+      <Filter>Header Files\ui\views</Filter>
+    </ClInclude>
+    <ClInclude Include="ui\views\game_details_panel.h">
       <Filter>Header Files\ui\views</Filter>
     </ClInclude>
     <ClInclude Include="ui\views\general_dialog.h">

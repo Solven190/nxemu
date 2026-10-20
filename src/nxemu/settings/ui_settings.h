@@ -13,6 +13,7 @@ struct UISettings
     // Both interfaces
     Stringlist recentFiles;
     Stringlist gameDirectories;
+    Stringlist gameDirectoriesRecursive;
     bool performVulkanCheck;
     bool startGamesInFullscreen;
     bool startGamesWithUiHidden;
@@ -20,14 +21,29 @@ struct UISettings
     bool enableDiscordPresence;
 
     // New interface
+    std::string interfaceTheme;
+    std::string interfaceLanguage;
+    bool consoleLanguageSet;
     int32_t gameIconSize;
     int32_t gameSort;
     bool gameListView;
     bool showCardInformation;
     bool showCardTitle;
     bool showPlayTime;
+    bool showGameDetails;
     bool showEmulationControls;
     StringMap shortcuts;
+    bool showPerformance;
+    bool performanceHistory;
+    bool performanceRange;
+    bool performanceFrameTime;
+    bool performanceLongest;
+    bool performanceSpeed;
+    bool performanceProcessor;
+    bool performanceMemory;
+    int32_t performanceSize;
+    int32_t performanceRate;
+    int32_t performanceHistoryLength;
 
     // Sciter only: remove with Sciter
     Path languageDir;

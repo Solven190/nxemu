@@ -59,6 +59,7 @@
     <ClCompile Include="ui\views\main_window.cpp" />
     <ClCompile Include="ui\views\menu_bar.cpp" />
     <ClCompile Include="ui\views\message_dialog.cpp" />
+    <ClCompile Include="ui\views\performance_overlay.cpp" />
     <ClCompile Include="ui\views\popup_menu.cpp" />
     <ClCompile Include="ui\views\rml_events.cpp" />
     <ClCompile Include="ui\views\advanced_dialog.cpp" />
@@ -73,11 +74,13 @@
     <ClCompile Include="ui\views\shortcut.cpp" />
     <ClCompile Include="ui\views\tooltip.cpp" />
     <ClCompile Include="ui\host\discord_presence.cpp" />
+    <ClCompile Include="ui\host\process_usage.cpp" />
     <ClCompile Include="ui\host\sdl_input.cpp" />
     <ClCompile Include="ui\input\input_params.cpp" />
     <ClCompile Include="ui\input\input_text.cpp" />
     <ClCompile Include="ui\library\firmware_avatars.cpp" />
     <ClCompile Include="ui\views\dialog.cpp" />
+    <ClCompile Include="ui\views\game_details_panel.cpp" />
     <ClCompile Include="ui\views\general_dialog.cpp" />
     <ClCompile Include="ui\views\settings_context.cpp" />
     <ClCompile Include="ui\views\settings_controls.cpp" />
@@ -95,6 +98,9 @@
     <ClCompile Include="ui\library\rom_properties.cpp" />
     <ClCompile Include="vulkan_probe.cpp" />
     <ClCompile Include="ui\platform\file_dialogs.cpp" />
+    <ClCompile Include="ui\platform\system_theme.cpp" />
+    <ClCompile Include="ui\host\system_language.cpp" />
+    <ClCompile Include="ui\library\interface_language.cpp" />
     <ClCompile Include="user_interface\game_list_worker.cpp" />
     <ClCompile Include="user_interface\hotkey_map.cpp" />
     <ClCompile Include="user_interface\html_utils.cpp" />
@@ -139,6 +145,7 @@
     <ClInclude Include="ui\views\main_window.h" />
     <ClInclude Include="ui\views\menu_bar.h" />
     <ClInclude Include="ui\views\message_dialog.h" />
+    <ClInclude Include="ui\views\performance_overlay.h" />
     <ClInclude Include="ui\views\popup_menu.h" />
     <ClInclude Include="ui\views\rml_events.h" />
     <ClInclude Include="ui\views\advanced_dialog.h" />
@@ -153,11 +160,13 @@
     <ClInclude Include="ui\views\shortcut.h" />
     <ClInclude Include="ui\views\tooltip.h" />
     <ClInclude Include="ui\host\discord_presence.h" />
+    <ClInclude Include="ui\host\process_usage.h" />
     <ClInclude Include="ui\host\sdl_input.h" />
     <ClInclude Include="ui\input\input_params.h" />
     <ClInclude Include="ui\input\input_text.h" />
     <ClInclude Include="ui\library\firmware_avatars.h" />
     <ClInclude Include="ui\views\dialog.h" />
+    <ClInclude Include="ui\views\game_details_panel.h" />
     <ClInclude Include="ui\views\general_dialog.h" />
     <ClInclude Include="ui\views\settings_context.h" />
     <ClInclude Include="ui\views\settings_controls.h" />
@@ -180,6 +189,9 @@
     <ClInclude Include="vulkan_probe.h" />
     <ClInclude Include="user_interface\app_events.h" />
     <ClInclude Include="ui\platform\file_dialogs.h" />
+    <ClInclude Include="ui\platform\system_theme.h" />
+    <ClInclude Include="ui\host\system_language.h" />
+    <ClInclude Include="ui\library\interface_language.h" />
     <ClInclude Include="user_interface\game_list_worker.h" />
     <ClInclude Include="user_interface\hotkey_map.h" />
     <ClInclude Include="user_interface\html_utils.h" />

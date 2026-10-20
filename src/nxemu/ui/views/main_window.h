@@ -5,12 +5,14 @@
 #include "directories_dialog.h"
 #include "firmware_dialog.h"
 #include "general_dialog.h"
+#include "game_details_panel.h"
 #include "hotkeys.h"
 #include "loading_screen.h"
 #include "menu_bar.h"
 #include "popup_menu.h"
 #include "profiles_dialog.h"
 #include "settings_context.h"
+#include "performance_overlay.h"
 #include "settings_page.h"
 #include "tooltip.h"
 #include "user_profiles.h"
@@ -151,6 +153,9 @@ private:
     void RebuildMenu();
     void AddGames(std::vector<FoundGame> found);
     void RescanGames();
+    void FinishRescan();
+    void ReleaseIcons(const std::vector<GameEntry> & games);
+    void UpdateScanIndicator();
     void RenderGames();
     void RenderVisibleGames();
     std::string IconRml(const std::string & icon);
@@ -172,7 +177,12 @@ private:
     void SizeCard(Rml::Element * card) const;
     float CardStep() const;
     void SelectGame(Rml::Element * card);
+    const GameEntry * SelectedGame() const;
+    void RequestSelectedDetails();
+    void RenderDetails();
+    void ToggleAddOn(size_t index);
     void SyncPhase();
+    void SyncInterfaceLanguage();
     void UpdateDiscord();
     static void DiscordSettingChanged(const char * setting, void * userData);
     void ShowPanel(Panel panel);
@@ -201,11 +211,18 @@ private:
     EmulatorSession & m_session;
     GameLibrary & m_library;
     const std::filesystem::path m_assetDir;
+    std::string m_interfaceLanguage;
     Rml::ElementDocument * m_document = nullptr;
     std::unique_ptr<MenuBar> m_menuBar;
     std::unique_ptr<PopupMenu> m_gameMenu;
     std::unique_ptr<LoadingScreen> m_loadingScreen;
     std::unique_ptr<Tooltip> m_tooltip;
+    std::unique_ptr<PerformanceOverlay> m_performance;
+    std::unique_ptr<GameDetailsPanel> m_detailsPanel;
+    GameDetails m_details;
+    bool m_detailsDirty = false;
+    bool m_detailsReload = false;
+    bool m_longestMeasured = false;
     std::unique_ptr<VolumeControl> m_volume;
     std::vector<UserProfile> m_profiles;
     uint64_t m_lastStatusUpdate = 0;
@@ -224,6 +241,11 @@ private:
     std::string m_gameSearch;
     bool m_gamesDirty = false;
     bool m_gamesScanning = false;
+    bool m_rescanning = false;
+    std::vector<GameEntry> m_nextGames;
+    uint64_t m_scanIndicatorTime = 0;
+    uint64_t m_scanReadingSince = 0;
+    float m_scanIndicatorShown = 0.0f;
     std::vector<size_t> m_shownGames;
     bool m_shownDirty = false;
     size_t m_gameColumns = 0;

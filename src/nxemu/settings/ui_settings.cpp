@@ -18,6 +18,12 @@ namespace
     constexpr bool kShowEmulationControlsDefault = false;
 #endif
 
+#ifdef _WIN32
+    constexpr const char * kInterfaceThemeDefault = "dark";
+#else
+    constexpr const char * kInterfaceThemeDefault = "system";
+#endif
+
     const HotkeyMap g_defaultHotkeys = {
         {Hotkey::LoadFile, {.key = (uint32_t)SCITER_KEY_O, .ctrl = true}},
         {Hotkey::Exit, {.key = (uint32_t)SCITER_KEY_Q, .ctrl = true}},
@@ -103,6 +109,7 @@ namespace
         // Both interfaces
         {NXUISetting::RecentFiles, "RecentFiles", &uiSettings.recentFiles},
         {NXUISetting::GameDirectories, "GameDirectories", &uiSettings.gameDirectories},
+        {NXUISetting::GameDirectoriesRecursive, "GameDirectoriesRecursive", &uiSettings.gameDirectoriesRecursive},
         {nullptr, "PerformVulkanCheck", &uiSettings.performVulkanCheck, true},
         {NXUISetting::StartGamesInFullscreen, "StartGamesInFullscreen", &uiSettings.startGamesInFullscreen, false},
         {NXUISetting::StartGamesWithUiHidden, "StartGamesWithUiHidden", &uiSettings.startGamesWithUiHidden, false},
@@ -110,14 +117,29 @@ namespace
         {NXUISetting::EnableDiscordPresence, "EnableDiscordPresence", &uiSettings.enableDiscordPresence, true},
 
         // New interface
+        {nullptr, "InterfaceTheme", &uiSettings.interfaceTheme, kInterfaceThemeDefault},
+        {nullptr, "InterfaceLanguage", &uiSettings.interfaceLanguage, ""},
+        {nullptr, "ConsoleLanguageSet", &uiSettings.consoleLanguageSet, false},
         {nullptr, "GameBrowser\\IconSize", &uiSettings.gameIconSize, 146},
         {nullptr, "GameBrowser\\Sort", &uiSettings.gameSort, 0},
         {nullptr, "GameBrowser\\ListView", &uiSettings.gameListView, false},
         {nullptr, "GameBrowser\\ShowCardInformation", &uiSettings.showCardInformation, true},
         {nullptr, "GameBrowser\\ShowCardTitle", &uiSettings.showCardTitle, true},
         {nullptr, "GameBrowser\\ShowPlayTime", &uiSettings.showPlayTime, true},
+        {nullptr, "GameBrowser\\ShowDetails", &uiSettings.showGameDetails, false},
         {nullptr, "ShowEmulationControls", &uiSettings.showEmulationControls, kShowEmulationControlsDefault},
         {nullptr, "Shortcuts", &uiSettings.shortcuts},
+        {nullptr, "Performance\\Show", &uiSettings.showPerformance, false},
+        {nullptr, "Performance\\History", &uiSettings.performanceHistory, true},
+        {nullptr, "Performance\\Range", &uiSettings.performanceRange, false},
+        {nullptr, "Performance\\FrameTime", &uiSettings.performanceFrameTime, false},
+        {nullptr, "Performance\\LongestFrame", &uiSettings.performanceLongest, true},
+        {nullptr, "Performance\\Speed", &uiSettings.performanceSpeed, false},
+        {nullptr, "Performance\\Processor", &uiSettings.performanceProcessor, false},
+        {nullptr, "Performance\\Memory", &uiSettings.performanceMemory, false},
+        {nullptr, "Performance\\Size", &uiSettings.performanceSize, 100},
+        {nullptr, "Performance\\Rate", &uiSettings.performanceRate, 2},
+        {nullptr, "Performance\\HistoryLength", &uiSettings.performanceHistoryLength, 30},
 
         // Sciter only: remove with Sciter
         {nullptr, "Language\\Directory", &uiSettings.languageDir, &uiSettings.languageDirValue, GetDefaultLanguageDir(), "./lang"},

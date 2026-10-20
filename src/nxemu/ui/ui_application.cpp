@@ -4,6 +4,7 @@
 #include "ui/host/ui_notification.h"
 #include "ui/host/ui_window.h"
 #include "ui/library/game_library.h"
+#include "ui/library/interface_language.h"
 #include "ui/views/main_window.h"
 #include "ui/views/message_dialog.h"
 #include <RmlUi/Core/Context.h>
@@ -39,6 +40,8 @@ std::filesystem::path FindAssetDirectory()
     const std::filesystem::path exeDir = Common::FS::GetExeDirectory();
     const std::filesystem::path candidates[] = {
         exeDir / "ui",
+        // macOS application bundle: Contents/MacOS/../Resources/ui
+        exeDir.parent_path() / "Resources" / "ui",
         exeDir.parent_path().parent_path().parent_path() / "src" / "nxemu" / "ui" / "assets",
     };
 
@@ -95,6 +98,7 @@ int Run(UiNotification & notification, const std::string & /*gamePath*/)
         std::cerr << "NXEmu: " << window.Error() << '\n';
         return 1;
     }
+    window.SetTheme(uiSettings.interfaceTheme);
 
     EmulatorSession session(window, notification, window.Handle());
     if (!session.Initialise())
@@ -102,6 +106,8 @@ int Run(UiNotification & notification, const std::string & /*gamePath*/)
         notification.DisplayError("Required modules failed to load.", "NXEmu");
         return 1;
     }
+    InterfaceLanguage::AdoptSystemLanguage(session);
+    InterfaceLanguage::Use(InterfaceLanguage::Code(), assetDir);
     if (!window.AttachVideo(session.Modules().Video()))
     {
         notification.DisplayError(window.Error().c_str(), "NXEmu");
@@ -142,7 +148,12 @@ int Run(UiNotification & notification, const std::string & /*gamePath*/)
             window.SyncNativeState();
             window.Context()->Update();
             window.PaceFrame();
-            window.Render(mainWindow.GameArea());
+            if (!window.Render(mainWindow.GameArea()) && !question)
+            {
+                // The dialog cannot be seen, such as after the GPU stopped responding.
+                SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, title.c_str(), text.c_str(), window.Handle());
+                dialog.Dismiss();
+            }
         }
         mainWindow.RevealMouseCursor();
         liveResize.busy = wasBusy;
